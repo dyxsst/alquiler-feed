@@ -31,6 +31,7 @@ from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)  # works under `python3 -I` too
 from core import norm  # noqa: E402
+from normalize import tidy_title  # noqa: E402
 
 ROOT = os.path.dirname(HERE)            # the clone (feed/ lives here)
 WORK = os.path.join(ROOT, "work")
@@ -572,7 +573,9 @@ def refresh_patch(have, doc, today):
         if v in (None, "", []) and have.get(k) not in (None, "", []):
             continue  # the source dropped a value: keep what we had
         if k == "title" and (not v or norm(v) == norm(have.get("title"))):
-            continue  # same words, only capitals or punctuation changed
+            if v and v != have.get("title") and tidy_title(have.get("title") or "") != (have.get("title") or ""):
+                p[k] = v  # same words, but the stored one is all capitals: keep the readable version
+            continue  # otherwise only capitals or punctuation changed
         if k in ("sale", "sep") and have.get("sep") == "venta" and not doc.get("sep"):
             continue  # never take a listing out of «Separados» on our own
         if k == "flags":
