@@ -151,6 +151,20 @@ def age_days(pub, today):
     return None
 
 
+def not_older(a, b):
+    """True when timestamp a is at or after timestamp b (ISO strings, any offset; empty a is never newer)."""
+    def parse(x):
+        try:
+            d = dt.datetime.fromisoformat(str(x).replace("Z", "+00:00"))
+            return d if d.tzinfo else d.replace(tzinfo=PANAMA)
+        except ValueError:
+            return None
+    pa, pb = parse(a), parse(b)
+    if pb is None:
+        return True
+    return bool(pa) and pa >= pb
+
+
 def safe_reason(e):
     s = str(e) or type(e).__name__
     return re.sub(r"\s+", " ", s)[:240]
@@ -374,7 +388,7 @@ def cmd_plan():
             prev = sources.get(key) or {}
             known = {lid for lid, d in listings.items() if d.get("sourceKey") == key} | \
                     {lid for lid in tomb_ids if lid.startswith(key + "-")}
-            if (prev.get("lastOk") or "") >= crit_at:
+            if not_older(prev.get("lastOk"), crit_at):
                 known |= {"%s-%s" % (key, s) for s in (prev.get("skip") or {})}
             futs[key] = ex.submit(fetch_cloud, key, known)
         for key, fu in futs.items():
@@ -415,7 +429,7 @@ def cmd_plan():
         prev = sources.get(key) or {}
         st = {"found": len(recs), "added": 0, "updated": 0, "inZone": 0, "skipped": collections.Counter(),
               "seen": [], "skip": {}}
-        if key in CLOUD and (prev.get("lastOk") or "") >= crit_at:
+        if key in CLOUD and not_older(prev.get("lastOk"), crit_at):
             carried = dict(prev.get("skip") or {})
         else:
             carried = {}
