@@ -127,7 +127,7 @@ def pre_parse_detail(page):
     return d
 
 
-def crawl_pre(log=print, known=frozenset()):
+def crawl_pre(log=print, known=frozenset(), with_details=True):
     out = []
     for kind, url in PRE_SEARCHES.items():
         cards = pages_until_empty(url, lambda p, u=url: u + "&page=%d" % p, pre_parse_search)
@@ -135,6 +135,8 @@ def crawl_pre(log=print, known=frozenset()):
             c["kind"] = kind
         log(f"pre {kind}: {len(cards)}")
         out.extend(cards)
+    if not with_details:
+        return out
     return details([c for c in out if "pre-" + c["sid"] not in known], pre_parse_detail) + \
         [c for c in out if "pre-" + c["sid"] in known]
 
@@ -214,7 +216,7 @@ def inmo_parse_detail(page):
     return d
 
 
-def crawl_inmo(log=print, known=frozenset()):
+def crawl_inmo(log=print, known=frozenset(), with_details=True):
     out = []
     for kind, url in INMO_SEARCHES.items():
         cards = pages_until_empty(url, lambda p, u=url: u + "&page=%d" % p, inmo_parse_search)
@@ -222,6 +224,8 @@ def crawl_inmo(log=print, known=frozenset()):
             c["kind"] = kind
         log(f"inmo {kind}: {len(cards)}")
         out.extend(cards)
+    if not with_details:
+        return out
     return details([c for c in out if "inmo-" + c["sid"] not in known], inmo_parse_detail) + \
         [c for c in out if "inmo-" + c["sid"] in known]
 
@@ -299,7 +303,7 @@ def mls_parse_detail(page):
     return d
 
 
-def crawl_mls(log=print, known=frozenset()):
+def crawl_mls(log=print, known=frozenset(), with_details=True):
     first = mls_parse_search(fetch(MLS_SEARCH + "&wplpage=1"))
     cards = first["cards"]
     p = 2
@@ -312,5 +316,7 @@ def crawl_mls(log=print, known=frozenset()):
     for c in cards:
         c["kind"] = "Casa" if c["type"].lower().startswith("casa") else "Apartamento"
     log(f"mls: {len(cards)} (sitio dice {first['total']})")
+    if not with_details:
+        return cards
     return details([c for c in cards if "mls-" + c["sid"] not in known], mls_parse_detail, workers=2) + \
         [c for c in cards if "mls-" + c["sid"] in known]

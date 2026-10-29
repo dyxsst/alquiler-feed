@@ -2,8 +2,10 @@
 """Lee Encuentra24 y Mitula desde tu computadora y publica los anuncios en tu repositorio alquiler-feed.
 
 Estos dos sitios bloquean la lectura desde la nube, pero responden a un navegador normal desde tu casa.
-Cada mañana este script abre Chromium en una pantalla virtual, recorre tus búsquedas con pausas de persona,
-guarda los anuncios en alquiler-feed/feed/*.json y los sube a GitHub. La carga diaria de Claude los lee de ahí.
+Cada mañana este script abre Chromium en una pantalla virtual, recorre tus búsquedas con pausas de persona y
+guarda los anuncios en alquiler-feed/feed/*.json. Después lee Rent-A-House, Panama Real Estate, InmoPanamá y
+MLS ACOBIR, normaliza las 6 fuentes con el código de alquiler-feed/loader (feed/norm.json) y sube todo a GitHub.
+La tarea diaria de Claude toma feed/norm.json de ahí.
 
 Uso:
     xvfb-run -a ~/Apto/.venv/bin/python ~/Apto/alquiler_vm.py           # corrida normal
@@ -28,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.environ.get("ALQ_REPO", os.path.join(HERE, "alquiler-feed"))
 PROFILE = os.path.join(HERE, ".perfil-navegador-visible")
 LOG = os.path.join(HERE, "alquiler_vm.log")
+CACHE = os.path.join(HERE, "alquiler_cache.json")  # fichas ya leídas de los 4 sitios que responden desde la nube
 PANAMA = timezone(timedelta(hours=-5))
 
 Q = "f_price.-800%7Cf_rooms.1-%7Cf_bath.1-%7CParking.1-%7Ctime.30"
@@ -485,6 +488,10 @@ def main():
         os.execvp("xvfb-run", ["xvfb-run", "-a", sys.executable, os.path.abspath(__file__)] + sys.argv[1:])
     from playwright.sync_api import sync_playwright
     log("Inicio")
+    if "--sin-git" not in sys.argv and os.path.isdir(os.path.join(REPO, ".git")):
+        r = git("pull", "--rebase", "--autostash")  # trae la última versión de loader/ antes de usarla
+        if r.returncode != 0:
+            log("git pull falló (sigo con la copia local): %s" % r.stderr.strip()[:200])
     with sync_playwright() as p:
         kw = dict(user_data_dir=PROFILE, headless=not os.environ.get("DISPLAY"), locale="es-PA", timezone_id="America/Panama",
                   viewport={"width": 1366, "height": 860},
@@ -503,6 +510,15 @@ def main():
     n2 = write_feed("mitula.json", mit, {"source": "mit", "total": mit["total"]})
     log("Encuentra24: %d anuncios%s · Mitula: %d anuncios%s" % (
         n1, " (" + e24["error"] + ")" if e24["error"] else "", n2, " (" + mit["error"] + ")" if mit["error"] else ""))
+    # Rent-A-House, Panama Real Estate, InmoPanamá y MLS ACOBIR, y el archivo normalizado de las 6 fuentes que
+    # la tarea diaria de Claude incorpora al tracker (feed/norm.json)
+    try:
+        sys.path.insert(0, os.path.join(REPO, "loader"))
+        import vmnorm
+        res = vmnorm.build(os.path.join(REPO, "feed"), CACHE, log=log)
+        log("Archivo normalizado: " + ", ".join("%s %s %d/%d" % (k, v[0], v[2], v[1]) for k, v in res.items()))
+    except Exception:  # noqa: BLE001
+        log("No pude armar feed/norm.json:\n" + traceback.format_exc())
     if "--sin-git" not in sys.argv:
         push()
     log("Fin")

@@ -1,21 +1,29 @@
 # alquiler-feed
 
-Datos y cargador diario del tracker «Búsqueda de alquiler».
+Datos y código de la carga diaria del tracker «Búsqueda de alquiler».
 
-- `feed/e24.json`, `feed/mitula.json`: anuncios de Encuentra24 y Mitula que tu computadora lee cada mañana
-  (esos dos sitios bloquean la lectura desde la nube). Los escribe `vm/alquiler_vm.py`.
-- `loader/`: el cargador que corre la tarea programada de Claude cada día. Lee Rent-A-House, Panama Real Estate,
-  InmoPanamá y MLS ACOBIR directamente, toma Encuentra24 y Mitula de `feed/`, y escribe en el tracker
-  solo anuncios nuevos y datos mejores de los existentes. Nunca toca tus estados, notas ni clasificaciones,
-  nunca borra anuncios, y lo que eliminaste para siempre no vuelve.
+Cómo funciona cada día:
 
-## En tu computadora (VM)
+1. **5:30 a. m., tu computadora (VM)** corre `vm/alquiler_vm.py` (copiado en `~/Apto/alquiler_vm.py`):
+   - trae la última versión de este repositorio (`git pull`);
+   - lee Encuentra24 y Mitula con un navegador (esos dos sitios bloquean la lectura desde la nube) → `feed/e24.json`, `feed/mitula.json`;
+   - lee Rent-A-House, Panama Real Estate, InmoPanamá y MLS ACOBIR y normaliza las 6 fuentes con `loader/`
+     (zona, distancia a Villa Lucre, servicios, solo venta, conflictos de ubicación…) → `feed/norm.json`;
+   - sube todo aquí.
+2. **6:45 a. m., la tarea programada de Claude** clona este repositorio solo para leer `feed/norm.json` y lo incorpora
+   al tracker con el script que va escrito en las instrucciones de la tarea (copia de referencia en `tools/merge.py`).
+   No ejecuta código de este repositorio. Nunca toca tus estados, notas ni clasificaciones, nunca borra anuncios,
+   y lo que eliminaste para siempre no vuelve.
 
-El script vive en `~/Apto/alquiler_vm.py` y este repositorio en `~/Apto/alquiler-feed`.
-Para actualizar el script: `cd ~/Apto/alquiler-feed && git pull && cp vm/alquiler_vm.py ~/Apto/`.
+Si una fuente falla, el archivo lo dice para esa fuente y las demás siguen.
 
-Corrida diaria con cron (`crontab -e`), antes de las 6:45 a. m. de Panamá:
+## En la VM
+
+    cd ~/Apto/alquiler-feed && git pull && cp vm/alquiler_vm.py ~/Apto/
+
+Cron (`crontab -e`), antes de las 6:45 a. m. de Panamá:
 
     30 5 * * * cd $HOME/Apto && .venv/bin/python alquiler_vm.py >> alquiler_cron.log 2>&1
 
-(si la VM está en hora UTC, usa `30 10 * * *`). El registro detallado queda en `~/Apto/alquiler_vm.log`.
+(si la VM está en hora UTC, usa `30 10 * * *`). Registro detallado: `~/Apto/alquiler_vm.log`.
+Las fichas ya leídas de los 4 sitios quedan en `~/Apto/alquiler_cache.json` para no reabrirlas cada día.
