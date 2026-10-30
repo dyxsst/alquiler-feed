@@ -25,5 +25,5 @@ Cron (`crontab -e`), antes de las 6:45 a. m. de Panamá:
 
     30 5 * * * cd $HOME/Apto && .venv/bin/python alquiler_vm.py >> alquiler_cron.log 2>&1
 
-(si la VM está en hora UTC, usa `30 10 * * *`). Registro detallado: `~/Apto/alquiler_vm.log`.
+(si la VM está en hora UTC, usa `30 10 * * *`). Registro de cada corrida: `~/Apto/alquiler_cron.log`.
 Las fichas ya leídas de los 4 sitios quedan en `~/Apto/alquiler_cache.json` para no reabrirlas cada día.
