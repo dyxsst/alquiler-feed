@@ -308,6 +308,27 @@ def goto(page, url):
     return html
 
 
+def e24_page_url(kind, n):
+    """Address of results page n: …/bienes-raices-alquiler-apartamentos.3?q=… (page 1 has no number)."""
+    return E24_SEARCHES[kind] if n <= 1 else E24_SEARCHES[kind].replace("?", ".%d?" % n, 1)
+
+
+def e24_reload(page, res, kind, n):
+    """A click to page n sometimes brings its listings in a response the browser never hands over. Opening the page's own
+    address returns HTML that carries them, so nothing is lost and the next click continues from page n."""
+    human_pause(page, 4, 8)
+    ads, meta = parse_e24(goto(page, e24_page_url(kind, n)))
+    if meta.get("page") not in (None, n):
+        log("Encuentra24 %s: al abrir la página %d llegó la %s" % (kind, n, meta.get("page")))
+    got = 0
+    for a in ads:
+        if a["id"] not in res["ads"]:
+            got += 1
+        res["ads"][a["id"]] = a
+    log("Encuentra24 %s: página %d abierta directamente, %d anuncios nuevos" % (kind, n, got))
+    return got
+
+
 def crawl_e24(page):
     res = {"ok": False, "error": "", "ads": {}, "total": {}, "pages": 0, "partial": False}
     try:
@@ -370,6 +391,8 @@ def crawl_e24(page):
                     if not got:  # late responses: give the page a little more time before giving up on it
                         page.wait_for_timeout(10000)
                         got = harvest()
+                    if not got:
+                        got = e24_reload(page, res, kind, n)
                     res["pages"] += 1
                     log("Encuentra24 %s: página %d, %d anuncios nuevos en esta corrida" % (kind, n, got))
                     empty = 0 if got else empty + 1

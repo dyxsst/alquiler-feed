@@ -19,11 +19,10 @@ Si una fuente falla, el archivo lo dice para esa fuente y las demás siguen.
 
 ## En la VM
 
-    cd ~/Apto/alquiler-feed && git pull && cp vm/alquiler_vm.py ~/Apto/
+Cron (`crontab -e`), antes de las 6:45 a. m. de Panamá. Antes de cada corrida trae la última versión de este
+repositorio y del script, así que los arreglos llegan solos:
 
-Cron (`crontab -e`), antes de las 6:45 a. m. de Panamá:
-
-    30 5 * * * cd $HOME/Apto && .venv/bin/python alquiler_vm.py >> alquiler_cron.log 2>&1
+    30 5 * * * cd $HOME/Apto && { git -C alquiler-feed pull -q --rebase --autostash; cp alquiler-feed/vm/alquiler_vm.py .; .venv/bin/python alquiler_vm.py; } >> alquiler_cron.log 2>&1
 
 (si la VM está en hora UTC, usa `30 10 * * *`). Registro de cada corrida: `~/Apto/alquiler_cron.log`.
 Las fichas ya leídas de los 4 sitios quedan en `~/Apto/alquiler_cache.json` para no reabrirlas cada día.
