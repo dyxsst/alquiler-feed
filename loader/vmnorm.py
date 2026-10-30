@@ -79,6 +79,23 @@ def reason(e):
     return re.sub(r"\s+", " ", s)[:240]
 
 
+PLURAL = {"Apartamento": "apartamentos", "Casa": "casas"}
+
+
+def shortfall(f, share=0.8):
+    """Encuentra24: the browser sometimes stops paging early and still reports success. Compare what arrived with the
+    totals the site shows for each search; "" when the read looks complete."""
+    tot = f.get("total")
+    if not isinstance(tot, dict):
+        return ""
+    got = {}
+    for a in f.get("ads") or []:
+        got[a.get("type")] = got.get(a.get("type"), 0) + 1
+    short = ["%d de %d %s" % (got.get(k, 0), n, PLURAL.get(k, k)) for k, n in tot.items()
+             if isinstance(n, int) and n >= 20 and got.get(k, 0) < share * n]
+    return ("Lectura incompleta: llegaron " + " y ".join(short)) if short else ""
+
+
 # ---------------------------------------------------------------- the four sites that answer from anywhere
 CARDS = {
     "rah": lambda log: src_rah.crawl(max_price=800, details=False, log=log),
@@ -151,6 +168,10 @@ def build(feed_dir, cache_path, log=print, today=None):
             raw[key] = ("error", [], f.get("error") or "la lectura falló")
         else:
             raw[key] = ("ok" if f.get("ok") else "parcial", ads, "" if f.get("ok") else (f.get("error") or ""))
+            short = shortfall(f) if key == "e24" and f.get("ok") else ""
+            if short:  # partial: the tracker adds what arrived and does not mark the rest as gone
+                raw[key] = ("parcial", ads, short)
+                log("e24: " + short)
 
     if raw["rah"][1]:
         N.learn_placeholders([c for c in raw["rah"][1] if c.get("detail")])
